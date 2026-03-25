@@ -1,0 +1,96 @@
+{
+  "name": "clickexec",
+  "displayName": "ClickExec",
+  "description": "エクスプローラーやエディタタブのコンテキストメニューから外部コマンドを実行するVSCode拡張機能",
+  "version": "0.0.1",
+  "publisher": "clickexec",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "ClickExec",
+      "properties": {
+        "clickExec.tools": {
+          "type": "array",
+          "default": [],
+          "description": "外部ツールの定義一覧",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "command"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "ツールの表示名"
+              },
+              "command": {
+                "type": "string",
+                "description": "実行するコマンド文字列（プレースホルダー使用可）"
+              },
+              "cwd": {
+                "type": "string",
+                "description": "作業ディレクトリ（プレースホルダー使用可、未指定時はワークスペースルート）"
+              }
+            }
+          }
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "clickExec.runTool",
+        "title": "ClickExec: ツールを実行"
+      },
+      {
+        "command": "clickExec.selectAndRunTool",
+        "title": "ClickExec: ツールを選択して実行"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "submenu": "clickExec.submenu",
+          "group": "clickExec"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "submenu": "clickExec.submenu",
+          "group": "clickExec"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "clickExec.submenu",
+        "label": "ClickExecで実行"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "mocha ./out/test/**/*.test.js --timeout 10000",
+    "test:property": "mocha ./out/test/property/**/*.property.test.js --timeout 30000"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/mocha": "^10.0.0",
+    "@types/chai": "^4.3.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "mocha": "^10.2.0",
+    "chai": "^4.3.0",
+    "fast-check": "^3.15.0",
+    "@vscode/test-electron": "^2.3.0"
+  }
+}
