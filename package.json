@@ -66,6 +66,12 @@
           "submenu": "clickExec.submenu",
           "group": "clickExec"
         }
+      ],
+      "clickExec.submenu": [
+        {
+          "command": "clickExec.runTool",
+          "group": "navigation"
+        }
       ]
     },
     "submenus": [
@@ -79,8 +85,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "mocha ./out/test/**/*.test.js --timeout 10000",
-    "test:property": "mocha ./out/test/property/**/*.property.test.js --timeout 30000"
+    "test": "mocha --require ./test-setup.js ./out/test/**/*.test.js --timeout 10000",
+    "test:property": "mocha --require ./test-setup.js ./out/test/property/**/*.property.test.js --timeout 30000"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
