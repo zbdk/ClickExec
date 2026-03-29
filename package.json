@@ -52,6 +52,10 @@
       {
         "command": "clickExec.selectAndRunTool",
         "title": "ClickExec: ツールを選択して実行"
+      },
+      {
+        "command": "clickExec.openSettings",
+        "title": "ClickExec: 設定を開く"
       }
     ],
     "menus": {
@@ -70,7 +74,11 @@
       "clickExec.submenu": [
         {
           "command": "clickExec.runTool",
-          "group": "navigation"
+          "group": "tools"
+        },
+        {
+          "command": "clickExec.openSettings",
+          "group": "settings"
         }
       ]
     },

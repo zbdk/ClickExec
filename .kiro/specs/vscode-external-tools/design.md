@@ -148,7 +148,40 @@ class TerminalManager {
 - ターミナルは `Map<string, vscode.Terminal>` で管理
 - `vscode.window.onDidCloseTerminal` で閉じられたターミナルをMapから削除
 
-### 5. Extension Entry Point (`extension.ts`)
+### 5. DefaultToolProvider（新規）
+
+OS判定に基づくデフォルトツール定義の生成を担当する純粋関数モジュール。
+
+```typescript
+type OsPlatform = 'win32' | 'darwin' | 'linux' | string;
+
+/** 指定されたOSプラットフォームに対応するデフォルトツール定義を返す */
+function getDefaultTool(platform: OsPlatform): ToolDefinition;
+
+/** ユーザー定義ツールが0件の場合のみデフォルトツールを追加して返す */
+function getToolsWithDefault(userTools: ToolDefinition[], platform: OsPlatform): ToolDefinition[];
+```
+
+- Windows: `{ name: "エクスプローラーで開く", command: "explorer ${dir}" }`
+- macOS: `{ name: "エクスプローラーで開く", command: "open ${dir}" }`
+- Linux: `{ name: "エクスプローラーで開く", command: "xdg-open ${dir}" }`
+- 未知のOS: Linux と同じコマンドにフォールバック
+- デフォルトツールは settings.json に書き込まず、メモリ上でのみ保持する
+
+### 6. SettingsOpener（新規）
+
+`settings.json` を開いて `clickExec.tools` セクションにカーソルを移動するロジック。
+
+```typescript
+async function openSettings(): Promise<void>;
+```
+
+- `vscode.commands.executeCommand('workbench.action.openSettingsJson')` で settings.json を開く
+- ドキュメント内で `"clickExec.tools"` を検索し、見つかればカーソルを移動
+- 見つからない場合はファイルの先頭を表示
+- エラー時は `vscode.window.showErrorMessage` で通知
+
+### 7. Extension Entry Point (`extension.ts`)
 
 ```typescript
 export function activate(context: vscode.ExtensionContext): void;
@@ -158,8 +191,11 @@ export function deactivate(): void;
 `activate` で以下を登録:
 - コンテキストメニューコマンド: `clickExec.runTool`
 - コマンドパレットコマンド: `clickExec.selectAndRunTool`
+- 設定を開くコマンド: `clickExec.openSettings`
 - 設定変更リスナー
 - TerminalManagerのdispose登録
+
+ツール定義が0件の場合は `getToolsWithDefault()` でデフォルトツールを追加してからクイックピックに表示する。
 
 ## データモデル
 
@@ -223,6 +259,10 @@ export function deactivate(): void;
       {
         "command": "clickExec.selectAndRunTool",
         "title": "ClickExec: ツールを選択して実行"
+      },
+      {
+        "command": "clickExec.openSettings",
+        "title": "ClickExec: 設定を開く"
       }
     ],
     "menus": {
@@ -236,6 +276,16 @@ export function deactivate(): void;
         {
           "submenu": "clickExec.submenu",
           "group": "clickExec"
+        }
+      ],
+      "clickExec.submenu": [
+        {
+          "command": "clickExec.runTool",
+          "group": "tools"
+        },
+        {
+          "command": "clickExec.openSettings",
+          "group": "settings"
         }
       ]
     },
@@ -309,6 +359,18 @@ flowchart TD
 
 **Validates: Requirements 2.2**
 
+### Property 7: デフォルトツールの条件付き追加
+
+*任意の*ツール定義リストに対して、リストが空（0件）の場合はデフォルトツールが1件追加され、そのツールの表示名が「エクスプローラーで開く」であること。リストが1件以上の場合はデフォルトツールが追加されず、元のリストがそのまま返されること。
+
+**Validates: Requirements 9.1, 9.2, 9.6**
+
+### Property 8: OSプラットフォームとデフォルトコマンドの正しい対応
+
+*任意の*サポート対象OSプラットフォーム（win32, darwin, linux）に対して、生成されるデフォルトツールのコマンドが、対応するOS標準エクスプローラーコマンド（`explorer ${dir}`, `open ${dir}`, `xdg-open ${dir}`）と一致すること。また、未知のプラットフォームに対してもエラーを発生させず、フォールバックコマンドを返すこと。
+
+**Validates: Requirements 9.3, 9.4, 9.5**
+
 ## エラーハンドリング
 
 ### エラー分類と対応
@@ -319,7 +381,9 @@ flowchart TD
 | 未知のプレースホルダー | 空文字列に置換して続行 | `vscode.window.showWarningMessage` |
 | プレースホルダー値が解決不能 | コマンド実行を中止 | `vscode.window.showErrorMessage` |
 | ターミナル作成失敗 | コマンド実行を中止 | `vscode.window.showErrorMessage` |
-| ツール定義が0件 | メニューに案内メッセージ表示 | コンテキストメニュー内テキスト |
+| ツール定義が0件 | デフォルトツールを自動追加 | なし（デフォルトツールが表示される） |
+| settings.json を開けない | コマンド実行を中止 | `vscode.window.showErrorMessage` |
+| `clickExec.tools` セクションが見つからない | ファイル先頭を表示 | なし（正常動作として扱う） |
 
 ### エラーメッセージ例
 
@@ -385,11 +449,13 @@ src/test/
 │   ├── configurationService.test.ts
 │   ├── placeholderResolver.test.ts
 │   ├── commandBuilder.test.ts
-│   └── terminalManager.test.ts
+│   ├── terminalManager.test.ts
+│   └── defaultToolProvider.test.ts
 ├── property/
 │   ├── configurationService.property.test.ts
 │   ├── placeholderResolver.property.test.ts
-│   └── commandBuilder.property.test.ts
+│   ├── commandBuilder.property.test.ts
+│   └── defaultToolProvider.property.test.ts
 └── integration/
     └── extension.test.ts
 ```

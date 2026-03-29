@@ -4,6 +4,8 @@ import { PlaceholderResolver } from './placeholderResolver';
 import { CommandBuilder } from './commandBuilder';
 import { TerminalManager } from './terminalManager';
 import { ToolDefinition, PlaceholderContext } from './types';
+import { getToolsWithDefault } from './defaultToolProvider';
+import { openSettings } from './settingsOpener';
 
 /** 現在のツール定義リスト（設定変更時に更新される） */
 let currentTools: ToolDefinition[] = [];
@@ -21,16 +23,11 @@ async function selectAndRunTool(
   commandBuilder: CommandBuilder,
   terminal: TerminalManager
 ): Promise<void> {
-  // ツール定義が0件の場合
-  if (tools.length === 0) {
-    vscode.window.showInformationMessage(
-      'ツールが未設定です。settings.json で clickExec.tools を設定してください'
-    );
-    return;
-  }
+  // ツール定義が0件の場合、デフォルトツールを追加
+  const effectiveTools = getToolsWithDefault(tools, process.platform);
 
   // クイックピックでツール選択
-  const items = tools.map((tool) => ({ label: tool.name, tool }));
+  const items = effectiveTools.map((tool) => ({ label: tool.name, tool }));
   const selected = await vscode.window.showQuickPick(items, {
     placeHolder: '実行するツールを選択してください',
   });
@@ -114,10 +111,17 @@ export function activate(context: vscode.ExtensionContext): void {
     currentTools = tools;
   });
 
+  // openSettings コマンドの登録
+  const openSettingsDisposable = vscode.commands.registerCommand(
+    'clickExec.openSettings',
+    () => openSettings()
+  );
+
   // すべてのDisposableを登録
   context.subscriptions.push(
     runToolDisposable,
     selectAndRunToolDisposable,
+    openSettingsDisposable,
     configChangeDisposable,
     { dispose: () => terminalManager.dispose() }
   );
