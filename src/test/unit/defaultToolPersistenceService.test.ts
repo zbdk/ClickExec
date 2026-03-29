@@ -1,12 +1,12 @@
 import { expect } from 'chai';
 import * as vscode from 'vscode';
 import { DefaultToolPersistenceService } from '../../defaultToolPersistenceService';
-import { getDefaultTool, getToolsWithDefault } from '../../defaultToolProvider';
+import { getToolsWithDefault } from '../../defaultToolProvider';
 
 /**
  * DefaultToolPersistenceService のユニットテスト
  * VSCode APIのモックを使用して、確認ダイアログと settings.json 書き込みの動作を検証する。
- * Requirements: 1.2, 1.3, 1.4, 1.5, 1.6, 1.7
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.2
  */
 describe('DefaultToolPersistenceService', () => {
   /** VSCode APIモックの元の状態を保持 */
@@ -19,6 +19,12 @@ describe('DefaultToolPersistenceService', () => {
 
   /** showErrorMessage の呼び出しを追跡する */
   let errorMessages: string[];
+
+  /** openSettingsFn の呼び出し回数を追跡する */
+  let openSettingsCalls: number;
+
+  /** openSettingsFn のモック関数 */
+  const mockOpenSettings = async () => { openSettingsCalls++; };
 
   before(() => {
     // 元のモック関数を保存
@@ -37,6 +43,7 @@ describe('DefaultToolPersistenceService', () => {
   beforeEach(() => {
     updateCalls = [];
     errorMessages = [];
+    openSettingsCalls = 0;
 
     // showErrorMessage のモック: 呼び出しを記録
     (vscode.window as any).showErrorMessage = (message: string) => {
@@ -72,7 +79,7 @@ describe('DefaultToolPersistenceService', () => {
     });
 
     it('config.update() が ConfigurationTarget.Global で呼ばれる', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       await service.resolveTools('win32');
 
       expect(updateCalls).to.have.lengthOf(1);
@@ -80,15 +87,20 @@ describe('DefaultToolPersistenceService', () => {
       expect(updateCalls[0].target).to.equal(vscode.ConfigurationTarget.Global);
     });
 
-    // Requirements 1.4: 書き込み成功後に書き込んだツール定義が返されること
-    it('書き込み成功後に書き込んだツール定義が返される', async () => {
-      const service = new DefaultToolPersistenceService();
+    // Requirements 1.1, 1.2: 書き込み成功後に openSettingsFn が呼ばれること
+    it('書き込み成功後に openSettingsFn が呼ばれる', async () => {
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
+      await service.resolveTools('win32');
+
+      expect(openSettingsCalls).to.equal(1);
+    });
+
+    // Requirements 2.2: 書き込み成功後の返り値が空配列であること
+    it('書き込み成功後に空配列が返される', async () => {
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       const result = await service.resolveTools('win32');
 
-      const expected = getDefaultTool('win32');
-      expect(result).to.have.lengthOf(1);
-      expect(result[0].name).to.equal(expected.name);
-      expect(result[0].command).to.equal(expected.command);
+      expect(result).to.deep.equal([]);
     });
   });
 
@@ -100,18 +112,26 @@ describe('DefaultToolPersistenceService', () => {
     });
 
     it('config.update() が呼ばれない', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       await service.resolveTools('darwin');
 
       expect(updateCalls).to.have.lengthOf(0);
     });
 
     it('メモリ上のデフォルトツールが返される', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       const result = await service.resolveTools('darwin');
 
       const expected = getToolsWithDefault([], 'darwin');
       expect(result).to.deep.equal(expected);
+    });
+
+    // Requirements 1.3: 「いいえ」選択時に openSettingsFn が呼ばれないこと
+    it('openSettingsFn が呼ばれない', async () => {
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
+      await service.resolveTools('darwin');
+
+      expect(openSettingsCalls).to.equal(0);
     });
   });
 
@@ -124,18 +144,26 @@ describe('DefaultToolPersistenceService', () => {
     });
 
     it('config.update() が呼ばれない', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       await service.resolveTools('linux');
 
       expect(updateCalls).to.have.lengthOf(0);
     });
 
     it('メモリ上のデフォルトツールが返される', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       const result = await service.resolveTools('linux');
 
       const expected = getToolsWithDefault([], 'linux');
       expect(result).to.deep.equal(expected);
+    });
+
+    // Requirements 1.4: ダイアログ閉じ時に openSettingsFn が呼ばれないこと
+    it('openSettingsFn が呼ばれない', async () => {
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
+      await service.resolveTools('linux');
+
+      expect(openSettingsCalls).to.equal(0);
     });
   });
 
@@ -147,7 +175,7 @@ describe('DefaultToolPersistenceService', () => {
     });
 
     it('エラーメッセージが表示される', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       await service.resolveTools('win32');
 
       expect(errorMessages).to.have.lengthOf(1);
@@ -155,11 +183,19 @@ describe('DefaultToolPersistenceService', () => {
     });
 
     it('メモリ上のデフォルトツールがフォールバックとして返される', async () => {
-      const service = new DefaultToolPersistenceService();
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
       const result = await service.resolveTools('win32');
 
       const expected = getToolsWithDefault([], 'win32');
       expect(result).to.deep.equal(expected);
+    });
+
+    // Requirements 1.5: 書き込み失敗時に openSettingsFn が呼ばれないこと
+    it('openSettingsFn が呼ばれない', async () => {
+      const service = new DefaultToolPersistenceService(mockOpenSettings);
+      await service.resolveTools('win32');
+
+      expect(openSettingsCalls).to.equal(0);
     });
   });
 });

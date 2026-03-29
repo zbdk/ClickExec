@@ -25,7 +25,7 @@ ClickExec拡張機能において、ツール定義が0件または `clickExec.t
 1. WHEN Tool_Definition が0件の場合、または Settings_JSON に `clickExec.tools` 設定キーが存在しない（未定義）場合、THE Extension SHALL 「サンプルコマンドを追加しますか？」という確認メッセージを Confirmation_Dialog で表示する
 2. WHEN ユーザーが Confirmation_Dialog で「はい」を選択した場合、THE Extension SHALL Default_Tool の定義を Settings_JSON の `clickExec.tools` に書き込む
 3. WHEN Default_Tool を Settings_JSON に書き込む場合、THE Extension SHALL VSCode の Configuration API（`WorkspaceConfiguration.update`）を使用してグローバル設定（`ConfigurationTarget.Global`）に書き込む
-4. WHEN Default_Tool の書き込みが完了した場合、THE Extension SHALL 書き込んだ Tool_Definition を即座にツール一覧として使用する
+4. WHEN Default_Tool の書き込みが完了した場合、THE Extension SHALL Settings_JSON を開いて `clickExec.tools` セクションにカーソルを移動し（SettingsOpener を使用）、`resolveTools()` の返り値として空配列を返す。これにより、呼び出し元はクイックピックによるツール選択を表示せず処理を終了する
 5. WHEN ユーザーが Confirmation_Dialog で「いいえ」を選択した場合、THE Extension SHALL Settings_JSON への書き込みを行わず、メモリ上の Default_Tool をフォールバックとして使用する
 6. WHEN ユーザーが Confirmation_Dialog を閉じた場合（Escキー等）、THE Extension SHALL 「いいえ」を選択した場合と同じ動作をする
 7. IF Default_Tool の Settings_JSON への書き込みに失敗した場合、THEN THE Extension SHALL エラーメッセージを表示し、メモリ上のデフォルトツールをフォールバックとして使用する

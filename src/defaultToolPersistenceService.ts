@@ -7,12 +7,22 @@ import {
   shouldPromptForPersistence,
   ToolsConfigInspection,
 } from './defaultToolProvider';
+import { openSettings } from './settingsOpener';
 
 /**
  * デフォルトツールの永続化を管理するサービス。
- * 確認ダイアログの表示と settings.json への書き込みを担当する。
+ * 確認ダイアログの表示、settings.json への書き込み、
+ * 書き込み成功後の settings.json オープンを担当する。
  */
 export class DefaultToolPersistenceService {
+  private readonly openSettingsFn: () => Promise<void>;
+
+  /**
+   * @param openSettingsFn - settings.json を開く関数（デフォルト: settingsOpener.openSettings）
+   */
+  constructor(openSettingsFn: () => Promise<void> = openSettings) {
+    this.openSettingsFn = openSettingsFn;
+  }
   /**
    * デフォルトツールの永続化を試みる。
    * 1. clickExec.tools の状態を inspect() で確認
@@ -48,7 +58,9 @@ export class DefaultToolPersistenceService {
       const defaultTools = [getDefaultTool(platform)];
       try {
         await config.update('tools', defaultTools, vscode.ConfigurationTarget.Global);
-        return defaultTools;
+        // 書き込み成功後: settings.json を開き、空配列を返してクイックピック表示をスキップ
+        await this.openSettingsFn();
+        return [];
       } catch {
         // 書き込み失敗時: エラー表示 + メモリフォールバック
         vscode.window.showErrorMessage(

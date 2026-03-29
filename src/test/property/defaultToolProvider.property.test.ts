@@ -243,6 +243,9 @@ describe('Feature: default-tool-persistence, Property 2: 書き込み内容と g
   /** config.update() に渡された値をキャプチャする変数 */
   let capturedTools: ToolDefinition[] | undefined;
 
+  /** openSettingsFn が呼ばれたかを追跡 */
+  let openSettingsCalled: boolean;
+
   /** VSCode APIモックの元の状態を保持 */
   let originalGetConfiguration: typeof vscode.workspace.getConfiguration;
   let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
@@ -276,6 +279,7 @@ describe('Feature: default-tool-persistence, Property 2: 書き込み内容と g
   beforeEach(function () {
     // 各イテレーション前にキャプチャをリセット
     capturedTools = undefined;
+    openSettingsCalled = false;
   });
 
   it('「はい」選択時に config.update() に渡される値が getDefaultTool(platform) と一致する', async function () {
@@ -283,8 +287,11 @@ describe('Feature: default-tool-persistence, Property 2: 書き込み内容と g
       fc.asyncProperty(anyPlatformArb, async (platform) => {
         // キャプチャをリセット
         capturedTools = undefined;
+        openSettingsCalled = false;
 
-        const service = new DefaultToolPersistenceService();
+        // openSettingsFn のモックを注入
+        const mockOpenSettings = async () => { openSettingsCalled = true; };
+        const service = new DefaultToolPersistenceService(mockOpenSettings);
         const result = await service.resolveTools(platform);
         const expectedTool = getDefaultTool(platform);
 
@@ -294,10 +301,9 @@ describe('Feature: default-tool-persistence, Property 2: 書き込み内容と g
         expect(capturedTools![0].name).to.equal(expectedTool.name);
         expect(capturedTools![0].command).to.equal(expectedTool.command);
 
-        // resolveTools の返り値も getDefaultTool(platform) と一致すること
-        expect(result).to.have.lengthOf(1);
-        expect(result[0].name).to.equal(expectedTool.name);
-        expect(result[0].command).to.equal(expectedTool.command);
+        // 書き込み成功後は空配列が返され、openSettingsFn が呼ばれること
+        expect(result).to.have.lengthOf(0);
+        expect(openSettingsCalled).to.equal(true);
       }),
       { numRuns: 100 },
     );

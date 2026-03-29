@@ -9,7 +9,7 @@ ClickExec拡張機能において、ツール定義が0件または `clickExec.t
 主要な機能フロー:
 1. `activate` 時またはツール実行時に `clickExec.tools` の状態を確認
 2. ツール定義が0件/未定義の場合、確認ダイアログを表示
-3. ユーザーが「はい」を選択 → `settings.json` に書き込み、書き込んだ定義を使用
+3. ユーザーが「はい」を選択 → `settings.json` に書き込み → `openSettings()` で settings.json を開く → 空配列を返してクイックピック表示をスキップ
 4. ユーザーが「いいえ」またはダイアログを閉じた → メモリ上のデフォルトツールをフォールバック
 5. 書き込み失敗 → エラー表示 + メモリ上のデフォルトツールをフォールバック
 
@@ -28,7 +28,8 @@ graph TD
 
     E -->|はい| G[settings.json に書き込み<br/>Configuration API]
     E -->|いいえ / 閉じる| H[メモリ上のデフォルトツール]
-    G -->|成功| I[書き込んだ定義を使用]
+    G -->|成功| I[SettingsOpener.openSettings<br/>settings.json を開く]
+    I --> I2[空配列を返す<br/>クイックピック表示スキップ]
     G -->|失敗| J[エラー表示 + メモリフォールバック]
 
     B -->|デフォルトツール生成| K[DefaultToolProvider]
@@ -77,22 +78,40 @@ VSCode APIに依存する永続化ロジックを担当するサービス。`ext
 ```typescript
 /**
  * デフォルトツールの永続化を管理するサービス。
- * 確認ダイアログの表示と settings.json への書き込みを担当する。
+ * 確認ダイアログの表示、settings.json への書き込み、
+ * 書き込み成功後の settings.json オープンを担当する。
  */
 class DefaultToolPersistenceService {
+  private readonly openSettingsFn: () => Promise<void>;
+
+  /**
+   * @param openSettingsFn - settings.json を開く関数（デフォルト: settingsOpener.openSettings）
+   */
+  constructor(openSettingsFn?: () => Promise<void>);
+
   /**
    * デフォルトツールの永続化を試みる。
    * 1. clickExec.tools の状態を inspect() で確認
    * 2. 永続化が必要な場合、確認ダイアログを表示
    * 3. ユーザーが「はい」を選択した場合、settings.json に書き込み
-   * 
-   * @returns 使用すべきツール定義の配列
+   * 4. 書き込み成功後: openSettingsFn() を呼び出して settings.json を開き、空配列を返す
+   *
+   * @returns 使用すべきツール定義の配列（書き込み成功時は空配列）
    */
   async resolveTools(platform: OsPlatform): Promise<ToolDefinition[]>;
 }
 ```
 
-このサービスはVSCode APIに直接依存するため、ユニットテストではモックを使用する。コアの判定ロジック（`shouldPromptForPersistence`）は純粋関数としてテスト可能。
+変更前後の `resolveTools` の返り値:
+
+| シナリオ | 返り値 |
+|---|---|
+| 「はい」→ 書き込み成功 | `[]`（空配列）— settings.json を開いた後、クイックピック表示をスキップ |
+| 「はい」→ 書き込み失敗 | メモリフォールバック（`getToolsWithDefault` の結果） |
+| 「いいえ」/ 閉じる | メモリフォールバック（`getToolsWithDefault` の結果） |
+| 永続化不要（既存ツールあり） | `globalValue`（既存のツール定義配列） |
+
+このサービスはVSCode APIに直接依存するため、ユニットテストではモックを使用する。コンストラクタインジェクションにより `openSettingsFn` をモック関数に差し替えてテスト可能。コアの判定ロジック（`shouldPromptForPersistence`）は純粋関数としてテスト可能。
 
 ### 3. extension.ts（変更）
 
@@ -110,6 +129,11 @@ async function selectAndRunTool(
   const effectiveTools = tools.length === 0
     ? await persistenceService.resolveTools(process.platform)
     : tools;
+
+  // 空配列の場合は早期リターン（settings.json オープン後など）
+  if (effectiveTools.length === 0) {
+    return;
+  }
 
   // 以降は既存のクイックピック表示・コマンド実行ロジック
   // ...
@@ -175,7 +199,8 @@ stateDiagram-v2
     ShowDialog --> UseMemoryDefault: 「いいえ」選択
     ShowDialog --> UseMemoryDefault: ダイアログを閉じる
 
-    WriteToSettings --> UseWritten: 書き込み成功
+    WriteToSettings --> OpenSettings: 書き込み成功
+    OpenSettings --> ReturnEmpty: settings.json を開く → 空配列を返す
     WriteToSettings --> ShowError: 書き込み失敗
     ShowError --> UseMemoryDefault: フォールバック
 ```
@@ -210,15 +235,17 @@ preworkの分析:
 
 ### エラー分類と対応
 
-| エラー状況 | 対応 | ユーザーへの通知 |
-|---|---|---|
-| `settings.json` への書き込み失敗 | メモリ上のデフォルトツールをフォールバック | `vscode.window.showErrorMessage` |
-| 確認ダイアログがEscで閉じられた | 「いいえ」と同じ動作（メモリフォールバック） | なし |
-| `inspect()` が `undefined` を返した | 永続化が必要と判定 | なし（正常フロー） |
+| エラー状況 | 対応 | ユーザーへの通知 | settings.json を開くか |
+|---|---|---|---|
+| `settings.json` への書き込み失敗 | メモリ上のデフォルトツールをフォールバック | `vscode.window.showErrorMessage` | 開かない |
+| `openSettings()` の実行失敗 | エラーを無視（書き込み自体は成功） | `openSettings` 内部でエラー表示 | 試行したが失敗 |
+| 確認ダイアログがEscで閉じられた | 「いいえ」と同じ動作（メモリフォールバック） | なし | 開かない |
+| `inspect()` が `undefined` を返した | 永続化が必要と判定 | なし（正常フロー） | — |
 
 ### エラーメッセージ
 
-- エラー: `"ClickExec: デフォルトツールの設定への書き込みに失敗しました"`
+- 書き込み失敗: `"ClickExec: デフォルトツールの設定への書き込みに失敗しました"`
+- settings.json オープン失敗: `"ClickExec: settings.json を開けませんでした"`（SettingsOpener 内部）
 
 ## テスト戦略
 
@@ -249,10 +276,11 @@ preworkの分析:
 
 - **DefaultToolPersistenceService**: VSCode APIのモックを使用し、以下を検証:
   - 「はい」選択時に `config.update()` が `ConfigurationTarget.Global` で呼ばれること（Requirements 1.2, 1.3）
-  - 書き込み成功後に書き込んだツール定義が返されること（Requirements 1.4）
-  - 「いいえ」選択時に書き込みが行われず、メモリデフォルトが返されること（Requirements 1.5）
+  - 書き込み成功後に `openSettingsFn()` が呼ばれ、settings.json が開かれること（Requirements 1.4）
+  - 書き込み成功後の返り値が空配列であること（Requirements 1.4）
+  - 「いいえ」選択時に書き込みが行われず、`openSettingsFn()` が呼ばれず、メモリデフォルトが返されること（Requirements 1.5）
   - ダイアログ閉じ（undefined）時に「いいえ」と同じ動作をすること（Requirements 1.6）
-  - 書き込み失敗時にエラーメッセージが表示され、メモリデフォルトが返されること（Requirements 1.7）
+  - 書き込み失敗時にエラーメッセージが表示され、`openSettingsFn()` が呼ばれず、メモリデフォルトが返されること（Requirements 1.7）
 
 - **shouldPromptForPersistence**: 具体的なエッジケースの検証:
   - `globalValue` が `undefined` → `true`

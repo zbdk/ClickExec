@@ -17,7 +17,7 @@ let terminalManager: TerminalManager;
  * ツール選択クイックピックを表示し、選択されたツールのコマンドを実行する。
  * ツール定義が0件の場合は案内メッセージを表示する。
  */
-async function selectAndRunTool(
+export async function selectAndRunTool(
   tools: ToolDefinition[],
   context: PlaceholderContext,
   commandBuilder: CommandBuilder,
@@ -28,6 +28,11 @@ async function selectAndRunTool(
   const effectiveTools = tools.length === 0
     ? await persistenceService.resolveTools(process.platform)
     : tools;
+
+  // 空配列の場合は早期リターン（settings.json オープン後など）
+  if (effectiveTools.length === 0) {
+    return;
+  }
 
   // クイックピックでツール選択
   const items = effectiveTools.map((tool) => ({ label: tool.name, tool }));
@@ -60,7 +65,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const resolver = new PlaceholderResolver();
   const commandBuilder = new CommandBuilder(resolver);
   terminalManager = new TerminalManager();
-  const persistenceService = new DefaultToolPersistenceService();
+  const persistenceService = new DefaultToolPersistenceService(openSettings);
 
   // 初回のツール定義読み込み
   currentTools = configService.loadTools();
