@@ -4,7 +4,7 @@ import { PlaceholderResolver } from './placeholderResolver';
 import { CommandBuilder } from './commandBuilder';
 import { TerminalManager } from './terminalManager';
 import { ToolDefinition, PlaceholderContext } from './types';
-import { getToolsWithDefault } from './defaultToolProvider';
+import { DefaultToolPersistenceService } from './defaultToolPersistenceService';
 import { openSettings } from './settingsOpener';
 
 /** 現在のツール定義リスト（設定変更時に更新される） */
@@ -21,10 +21,13 @@ async function selectAndRunTool(
   tools: ToolDefinition[],
   context: PlaceholderContext,
   commandBuilder: CommandBuilder,
-  terminal: TerminalManager
+  terminal: TerminalManager,
+  persistenceService: DefaultToolPersistenceService
 ): Promise<void> {
-  // ツール定義が0件の場合、デフォルトツールを追加
-  const effectiveTools = getToolsWithDefault(tools, process.platform);
+  // ツール定義が0件の場合、永続化サービスを通じてツールを解決
+  const effectiveTools = tools.length === 0
+    ? await persistenceService.resolveTools(process.platform)
+    : tools;
 
   // クイックピックでツール選択
   const items = effectiveTools.map((tool) => ({ label: tool.name, tool }));
@@ -57,6 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const resolver = new PlaceholderResolver();
   const commandBuilder = new CommandBuilder(resolver);
   terminalManager = new TerminalManager();
+  const persistenceService = new DefaultToolPersistenceService();
 
   // 初回のツール定義読み込み
   currentTools = configService.loadTools();
@@ -77,7 +81,7 @@ export function activate(context: vscode.ExtensionContext): void {
           isFolder,
         };
 
-        await selectAndRunTool(currentTools, placeholderContext, commandBuilder, terminalManager);
+        await selectAndRunTool(currentTools, placeholderContext, commandBuilder, terminalManager, persistenceService);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`ClickExec: ${message}`);
@@ -98,7 +102,7 @@ export function activate(context: vscode.ExtensionContext): void {
           workspaceFolder: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
         };
 
-        await selectAndRunTool(currentTools, placeholderContext, commandBuilder, terminalManager);
+        await selectAndRunTool(currentTools, placeholderContext, commandBuilder, terminalManager, persistenceService);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`ClickExec: ${message}`);

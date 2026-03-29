@@ -148,9 +148,9 @@ class TerminalManager {
 - ターミナルは `Map<string, vscode.Terminal>` で管理
 - `vscode.window.onDidCloseTerminal` で閉じられたターミナルをMapから削除
 
-### 5. DefaultToolProvider（新規）
+### 5. DefaultToolProvider（変更）
 
-OS判定に基づくデフォルトツール定義の生成を担当する純粋関数モジュール。
+OS判定に基づくデフォルトツール定義の生成と、永続化判定ロジックを担当する純粋関数モジュール。
 
 ```typescript
 type OsPlatform = 'win32' | 'darwin' | 'linux' | string;
@@ -160,13 +160,37 @@ function getDefaultTool(platform: OsPlatform): ToolDefinition;
 
 /** ユーザー定義ツールが0件の場合のみデフォルトツールを追加して返す */
 function getToolsWithDefault(userTools: ToolDefinition[], platform: OsPlatform): ToolDefinition[];
+
+/** settings.json の clickExec.tools 設定の検査結果 */
+interface ToolsConfigInspection {
+  globalValue: ToolDefinition[] | undefined;
+}
+
+/** デフォルトツールの永続化確認が必要かどうかを判定する純粋関数 */
+function shouldPromptForPersistence(inspection: ToolsConfigInspection): boolean;
 ```
 
 - Windows: `{ name: "エクスプローラーで開く", command: "explorer ${dir}" }`
 - macOS: `{ name: "エクスプローラーで開く", command: "open ${dir}" }`
 - Linux: `{ name: "エクスプローラーで開く", command: "xdg-open ${dir}" }`
 - 未知のOS: Linux と同じコマンドにフォールバック
-- デフォルトツールは settings.json に書き込まず、メモリ上でのみ保持する
+- ツール定義が0件または `clickExec.tools` 設定キーが未定義の場合、ユーザーに確認ダイアログを表示し、「はい」を選択した場合は `settings.json` のグローバル設定に書き込む。「いいえ」を選択した場合またはダイアログを閉じた場合は、メモリ上のデフォルトツールをフォールバックとして使用する
+
+### 5.1 DefaultToolPersistenceService（新規）
+
+VSCode APIに依存する永続化ロジックを担当するサービス。`extension.ts` から呼び出される。
+
+```typescript
+class DefaultToolPersistenceService {
+  /** デフォルトツールの永続化を試み、使用すべきツール定義を返す */
+  async resolveTools(platform: OsPlatform): Promise<ToolDefinition[]>;
+}
+```
+
+- `vscode.workspace.getConfiguration('clickExec').inspect<ToolDefinition[]>('tools')` で設定状態を取得
+- `shouldPromptForPersistence` で永続化判定
+- 確認ダイアログ（「はい」「いいえ」）を表示し、「はい」選択時に `ConfigurationTarget.Global` で書き込み
+- 書き込み失敗時はエラーメッセージを表示し、メモリ上のデフォルトツールをフォールバック
 
 ### 6. SettingsOpener（新規）
 

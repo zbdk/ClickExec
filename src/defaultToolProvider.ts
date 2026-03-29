@@ -20,7 +20,7 @@ export const DEFAULT_COMMAND = 'xdg-open ${dir}';
 export function getDefaultTool(platform: OsPlatform): ToolDefinition {
   return {
     name: 'エクスプローラーで開く',
-    command: OS_COMMAND_MAP[platform] ?? DEFAULT_COMMAND,
+    command: Object.prototype.hasOwnProperty.call(OS_COMMAND_MAP, platform) ? OS_COMMAND_MAP[platform] : DEFAULT_COMMAND,
   };
 }
 
@@ -33,4 +33,18 @@ export function getToolsWithDefault(userTools: ToolDefinition[], platform: OsPla
     return [getDefaultTool(platform)];
   }
   return userTools;
+}
+
+/** settings.json の clickExec.tools 設定の検査結果 */
+export interface ToolsConfigInspection {
+  /** グローバル設定に値が存在するか（undefined = 未定義） */
+  globalValue: ToolDefinition[] | undefined;
+}
+
+/**
+ * デフォルトツールの永続化確認が必要かどうかを判定する純粋関数。
+ * globalValue が undefined（設定キー未定義）または空配列の場合に true を返す。
+ */
+export function shouldPromptForPersistence(inspection: ToolsConfigInspection): boolean {
+  return inspection.globalValue === undefined || inspection.globalValue.length === 0;
 }

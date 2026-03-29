@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { getDefaultTool, getToolsWithDefault, OS_COMMAND_MAP, DEFAULT_COMMAND } from '../../defaultToolProvider';
+import { getDefaultTool, getToolsWithDefault, OS_COMMAND_MAP, DEFAULT_COMMAND, shouldPromptForPersistence } from '../../defaultToolProvider';
 import { ToolDefinition } from '../../types';
 
 /**
@@ -70,6 +70,33 @@ describe('DefaultToolProvider', () => {
       const original = [...tools];
       const result = getToolsWithDefault(tools, 'darwin');
       expect(result).to.deep.equal(original);
+    });
+  });
+
+  /**
+   * shouldPromptForPersistence のユニットテスト
+   * 永続化確認ダイアログの表示判定ロジックを検証する
+   * Requirements: 1.1, 2.1, 2.3
+   */
+  describe('shouldPromptForPersistence', () => {
+    // Requirements 1.1, 2.3: globalValue が undefined（設定キー未定義）の場合、永続化が必要
+    it('globalValue が undefined の場合、true を返す', () => {
+      const result = shouldPromptForPersistence({ globalValue: undefined });
+      expect(result).to.be.true;
+    });
+
+    // Requirements 1.1, 2.3: globalValue が空配列（要素数0）の場合、永続化が必要
+    it('globalValue が空配列の場合、true を返す', () => {
+      const result = shouldPromptForPersistence({ globalValue: [] });
+      expect(result).to.be.true;
+    });
+
+    // Requirements 2.1: globalValue が1件以上の要素を持つ場合、永続化不要
+    it('globalValue が1件以上の要素を持つ場合、false を返す', () => {
+      const result = shouldPromptForPersistence({
+        globalValue: [{ name: 'test', command: 'test' }],
+      });
+      expect(result).to.be.false;
     });
   });
 });
