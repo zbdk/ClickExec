@@ -1,9 +1,9 @@
-# バグ修正スペックのルール
+# 機能追加スペックのルール
 
 ## ディレクトリ構造
 
-* bugfixのスペックは `.kiro/specs/bugfixes/` ディレクトリ配下に作成する
-* 例: `.kiro/specs/bugfixes/{bugfix-name}/`
+* 機能追加のスペックは `.kiro/specs/features/` ディレクトリ配下に作成する
+* 例: `.kiro/specs/features/{feature-name}/`
 
 ## 関連スペックへの反映
 
