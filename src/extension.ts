@@ -5,7 +5,6 @@ import { CommandBuilder } from './commandBuilder';
 import { TerminalManager } from './terminalManager';
 import { ToolDefinition, PlaceholderContext } from './types';
 import { DefaultToolPersistenceService } from './defaultToolPersistenceService';
-import { openSettings } from './settingsOpener';
 
 /** 現在のツール定義リスト（設定変更時に更新される） */
 let currentTools: ToolDefinition[] = [];
@@ -65,7 +64,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const resolver = new PlaceholderResolver();
   const commandBuilder = new CommandBuilder(resolver);
   terminalManager = new TerminalManager();
-  const persistenceService = new DefaultToolPersistenceService(openSettings);
+  const persistenceService = new DefaultToolPersistenceService();
 
   // 初回のツール定義読み込み
   currentTools = configService.loadTools();
@@ -120,17 +119,10 @@ export function activate(context: vscode.ExtensionContext): void {
     currentTools = tools;
   });
 
-  // openSettings コマンドの登録
-  const openSettingsDisposable = vscode.commands.registerCommand(
-    'clickExec.openSettings',
-    () => openSettings()
-  );
-
   // すべてのDisposableを登録
   context.subscriptions.push(
     runToolDisposable,
     selectAndRunToolDisposable,
-    openSettingsDisposable,
     configChangeDisposable,
     { dispose: () => terminalManager.dispose() }
   );

@@ -215,9 +215,10 @@ export function deactivate(): void;
 `activate` で以下を登録:
 - コンテキストメニューコマンド: `clickExec.runTool`
 - コマンドパレットコマンド: `clickExec.selectAndRunTool`
-- 設定を開くコマンド: `clickExec.openSettings`
 - 設定変更リスナー
 - TerminalManagerのdispose登録
+
+> **note**: `clickExec.openSettings` コマンド登録は削除済み（remove-open-settings-menu により変更）
 
 ツール定義が0件の場合は `getToolsWithDefault()` でデフォルトツールを追加してからクイックピックに表示する。
 
@@ -283,12 +284,13 @@ export function deactivate(): void;
       {
         "command": "clickExec.selectAndRunTool",
         "title": "ClickExec: ツールを選択して実行"
-      },
-      {
-        "command": "clickExec.openSettings",
-        "title": "ClickExec: 設定を開く"
       }
     ],
+```
+
+> **note**: `clickExec.openSettings` コマンド登録は削除済み（remove-open-settings-menu により変更）
+
+```json
     "menus": {
       "explorer/context": [
         {
@@ -306,10 +308,6 @@ export function deactivate(): void;
         {
           "command": "clickExec.runTool",
           "group": "tools"
-        },
-        {
-          "command": "clickExec.openSettings",
-          "group": "settings"
         }
       ]
     },

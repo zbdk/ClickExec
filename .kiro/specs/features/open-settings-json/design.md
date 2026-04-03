@@ -36,7 +36,7 @@ graph TD
 1. **settings.json を開く方法**: VSCode組み込みコマンド `workbench.action.openSettingsJson` を使用して settings.json を開き、テキスト検索で `clickExec.tools` の位置を特定してカーソルを移動する。`workbench.action.openSettings` (UI) ではなく JSON ファイルを直接開く方式を採用する。これにより、ユーザーが直接 JSON を編集できる。
 2. **デフォルトツールの提供方式**: `settings.json` には書き込まず、メモリ上でのみ保持する。`ConfigurationService.loadTools()` の結果が0件の場合に `DefaultToolProvider` からデフォルトツールを取得する。これにより、ユーザーの設定ファイルを汚さない。
 3. **OS判定の純粋関数化**: `process.platform` の値を引数として受け取る純粋関数として実装し、テスタビリティを確保する。
-4. **メニュー項目の配置**: `package.json` の `menus` 定義で `group` を使い、ツール一覧と「設定を開く...」を区切り線で分離する。ツール一覧は `group: "tools"`, 設定メニューは `group: "settings"` とする。
+4. **メニュー項目の配置**: ~~`package.json` の `menus` 定義で `group` を使い、ツール一覧と「設定を開く...」を区切り線で分離する。ツール一覧は `group: "tools"`, 設定メニューは `group: "settings"` とする。~~ （削除済み — remove-open-settings-menu により、サブメニュー内は `tools` グループのみとなった）
 
 ## コンポーネントとインターフェース
 
@@ -63,6 +63,8 @@ function getDefaultTool(platform: OsPlatform): ToolDefinition;
 - その他のOS: Linux と同じコマンドにフォールバック
 
 ### 2. SettingsOpener（新規）
+
+> **note**: コマンド登録は削除済み、内部APIとしてのみ使用（remove-open-settings-menu により変更）
 
 `settings.json` を開いて `clickExec.tools` セクションにカーソルを移動するロジック。
 
@@ -108,17 +110,19 @@ class ConfigurationService {
 
 ### 4. extension.ts（変更）
 
+> **note**: `clickExec.openSettings` コマンド登録は削除済み（remove-open-settings-menu により変更）
+
 以下の変更を加える:
 
 ```typescript
 export function activate(context: vscode.ExtensionContext): void {
   // ... 既存の初期化 ...
 
-  // 新規: openSettings コマンドの登録
-  const openSettingsDisposable = vscode.commands.registerCommand(
-    'clickExec.openSettings',
-    () => openSettings()
-  );
+  // 削除済み: openSettings コマンドの登録（remove-open-settings-menu により削除）
+  // const openSettingsDisposable = vscode.commands.registerCommand(
+  //   'clickExec.openSettings',
+  //   () => openSettings()
+  // );
 
   // 既存の selectAndRunTool 呼び出し時にデフォルトツールを考慮
   // currentTools が0件の場合は getDefaultTool(process.platform) を追加
@@ -127,32 +131,24 @@ export function activate(context: vscode.ExtensionContext): void {
 
 ### 5. package.json（変更）
 
-以下の contributes 定義を追加・変更する:
+> **note**: `clickExec.openSettings` コマンド定義およびメニューエントリは削除済み（remove-open-settings-menu により変更）
+
+以下の contributes 定義が現在の状態:
 
 ```json
 {
-  "commands": [
-    {
-      "command": "clickExec.openSettings",
-      "title": "ClickExec: 設定を開く"
-    }
-  ],
   "menus": {
     "clickExec.submenu": [
       {
         "command": "clickExec.runTool",
         "group": "tools"
-      },
-      {
-        "command": "clickExec.openSettings",
-        "group": "settings"
       }
     ]
   }
 }
 ```
 
-`group` の値により、VSCodeが自動的にグループ間に区切り線を挿入する。
+サブメニュー内は `tools` グループのみとなり、区切り線は表示されない。
 
 ## データモデル
 
@@ -193,13 +189,14 @@ const DEFAULT_COMMAND = 'xdg-open ${dir}';
 
 ### package.json の contributes 変更差分
 
+> **note**: `clickExec.openSettings` コマンド定義およびサブメニューエントリは削除済み（remove-open-settings-menu により変更）
+
 ```json
 {
   "contributes": {
     "commands": [
       { "command": "clickExec.runTool", "title": "ClickExec: ツールを実行" },
-      { "command": "clickExec.selectAndRunTool", "title": "ClickExec: ツールを選択して実行" },
-      { "command": "clickExec.openSettings", "title": "ClickExec: 設定を開く" }
+      { "command": "clickExec.selectAndRunTool", "title": "ClickExec: ツールを選択して実行" }
     ],
     "menus": {
       "explorer/context": [
@@ -209,8 +206,7 @@ const DEFAULT_COMMAND = 'xdg-open ${dir}';
         { "submenu": "clickExec.submenu", "group": "clickExec" }
       ],
       "clickExec.submenu": [
-        { "command": "clickExec.runTool", "group": "tools" },
-        { "command": "clickExec.openSettings", "group": "settings" }
+        { "command": "clickExec.runTool", "group": "tools" }
       ]
     },
     "submenus": [
