@@ -6,7 +6,7 @@ ClickExec拡張機能に、`settings.json` の `clickExec.tools` 設定セクシ
 
 主要な機能フロー:
 1. `clickExec.openSettings` コマンドで `settings.json` を開き、`clickExec.tools` セクションにカーソルを移動
-2. コンテキストメニューの「ClickExecで実行」サブメニュー内に「設定を開く...」メニュー項目を追加
+2. ~~コンテキストメニューの「ClickExecで実行」サブメニュー内に「設定を開く...」メニュー項目を追加~~ （削除済み — remove-open-settings-menu により削除。さらに flatten-context-menu によりサブメニュー自体が廃止済み）
 3. ツール定義が0件の場合、OS標準エクスプローラーで開くデフォルトツールをメモリ上で自動追加
 
 ## アーキテクチャ
@@ -36,7 +36,7 @@ graph TD
 1. **settings.json を開く方法**: VSCode組み込みコマンド `workbench.action.openSettingsJson` を使用して settings.json を開き、テキスト検索で `clickExec.tools` の位置を特定してカーソルを移動する。`workbench.action.openSettings` (UI) ではなく JSON ファイルを直接開く方式を採用する。これにより、ユーザーが直接 JSON を編集できる。
 2. **デフォルトツールの提供方式**: `settings.json` には書き込まず、メモリ上でのみ保持する。`ConfigurationService.loadTools()` の結果が0件の場合に `DefaultToolProvider` からデフォルトツールを取得する。これにより、ユーザーの設定ファイルを汚さない。
 3. **OS判定の純粋関数化**: `process.platform` の値を引数として受け取る純粋関数として実装し、テスタビリティを確保する。
-4. **メニュー項目の配置**: ~~`package.json` の `menus` 定義で `group` を使い、ツール一覧と「設定を開く...」を区切り線で分離する。ツール一覧は `group: "tools"`, 設定メニューは `group: "settings"` とする。~~ （削除済み — remove-open-settings-menu により、サブメニュー内は `tools` グループのみとなった）
+4. **メニュー項目の配置**: ~~`package.json` の `menus` 定義で `group` を使い、ツール一覧と「設定を開く...」を区切り線で分離する。ツール一覧は `group: "tools"`, 設定メニューは `group: "settings"` とする。~~ （削除済み — remove-open-settings-menu により、サブメニュー内は `tools` グループのみとなった。さらに flatten-context-menu によりサブメニュー自体が廃止され、コマンドがコンテキストメニューの一階層目に直接配置される構造に変更された）
 
 ## コンポーネントとインターフェース
 
@@ -131,24 +131,24 @@ export function activate(context: vscode.ExtensionContext): void {
 
 ### 5. package.json（変更）
 
-> **note**: `clickExec.openSettings` コマンド定義およびメニューエントリは削除済み（remove-open-settings-menu により変更）
+> **note**: `clickExec.openSettings` コマンド定義およびメニューエントリは削除済み（remove-open-settings-menu により変更）。さらにサブメニュー構造はフラット化済み（flatten-context-menu により変更）。
 
-以下の contributes 定義が現在の状態:
+以下の contributes メニュー定義が現在の状態:
 
 ```json
 {
   "menus": {
-    "clickExec.submenu": [
-      {
-        "command": "clickExec.runTool",
-        "group": "tools"
-      }
+    "explorer/context": [
+      { "command": "clickExec.runTool", "group": "clickExec" }
+    ],
+    "editor/title/context": [
+      { "command": "clickExec.runTool", "group": "clickExec" }
     ]
   }
 }
 ```
 
-サブメニュー内は `tools` グループのみとなり、区切り線は表示されない。
+`submenus` セクションと `menus.clickExec.submenu` セクションは廃止され、`clickExec.runTool` コマンドがコンテキストメニューの一階層目に直接配置されている。
 
 ## データモデル
 
@@ -187,9 +187,9 @@ const OS_COMMAND_MAP: Record<string, string> = {
 const DEFAULT_COMMAND = 'xdg-open ${dir}';
 ```
 
-### package.json の contributes 変更差分
+### package.json の contributes 最終状態
 
-> **note**: `clickExec.openSettings` コマンド定義およびサブメニューエントリは削除済み（remove-open-settings-menu により変更）
+> **note**: `clickExec.openSettings` コマンド定義およびサブメニューエントリは削除済み（remove-open-settings-menu により変更）。サブメニュー構造はフラット化済み（flatten-context-menu により変更）。
 
 ```json
 {
@@ -200,18 +200,12 @@ const DEFAULT_COMMAND = 'xdg-open ${dir}';
     ],
     "menus": {
       "explorer/context": [
-        { "submenu": "clickExec.submenu", "group": "clickExec" }
+        { "command": "clickExec.runTool", "group": "clickExec" }
       ],
       "editor/title/context": [
-        { "submenu": "clickExec.submenu", "group": "clickExec" }
-      ],
-      "clickExec.submenu": [
-        { "command": "clickExec.runTool", "group": "tools" }
+        { "command": "clickExec.runTool", "group": "clickExec" }
       ]
-    },
-    "submenus": [
-      { "id": "clickExec.submenu", "label": "ClickExecで実行" }
-    ]
+    }
   }
 }
 ```

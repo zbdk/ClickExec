@@ -2,7 +2,7 @@
   "name": "clickexec",
   "displayName": "ClickExec",
   "description": "エクスプローラーやエディタタブのコンテキストメニューから外部コマンドを実行するVSCode拡張機能",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "publisher": "clickexec",
   "engines": {
     "vscode": "^1.85.0"
@@ -52,42 +52,22 @@
       {
         "command": "clickExec.selectAndRunTool",
         "title": "ClickExec: ツールを選択して実行"
-      },
-      {
-        "command": "clickExec.openSettings",
-        "title": "ClickExec: 設定を開く"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "submenu": "clickExec.submenu",
+          "command": "clickExec.runTool",
           "group": "clickExec"
         }
       ],
       "editor/title/context": [
         {
-          "submenu": "clickExec.submenu",
+          "command": "clickExec.runTool",
           "group": "clickExec"
         }
-      ],
-      "clickExec.submenu": [
-        {
-          "command": "clickExec.runTool",
-          "group": "tools"
-        },
-        {
-          "command": "clickExec.openSettings",
-          "group": "settings"
-        }
       ]
-    },
-    "submenus": [
-      {
-        "id": "clickExec.submenu",
-        "label": "ClickExecで実行"
-      }
-    ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",

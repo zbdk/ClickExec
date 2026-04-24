@@ -28,10 +28,9 @@ describe('Feature: remove-open-settings-menu, Property 1: package.json にコマ
     expect(commandIds).to.not.include('clickExec.openSettings');
   });
 
-  it('contributes.menus.clickExec.submenu に clickExec.openSettings が含まれないこと', () => {
-    const submenuEntries: { command: string }[] = packageJson.contributes.menus['clickExec.submenu'];
-    const commandIds = submenuEntries.map((e) => e.command);
-    expect(commandIds).to.not.include('clickExec.openSettings');
+  it('contributes.menus に clickExec.submenu キーが存在しないこと（サブメニュー廃止済み）', () => {
+    const menus = packageJson.contributes.menus;
+    expect(menus).to.not.have.property('clickExec.submenu');
   });
 });
 

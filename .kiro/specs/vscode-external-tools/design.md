@@ -294,32 +294,22 @@ export function deactivate(): void;
     "menus": {
       "explorer/context": [
         {
-          "submenu": "clickExec.submenu",
+          "command": "clickExec.runTool",
           "group": "clickExec"
         }
       ],
       "editor/title/context": [
         {
-          "submenu": "clickExec.submenu",
+          "command": "clickExec.runTool",
           "group": "clickExec"
         }
-      ],
-      "clickExec.submenu": [
-        {
-          "command": "clickExec.runTool",
-          "group": "tools"
-        }
       ]
-    },
-    "submenus": [
-      {
-        "id": "clickExec.submenu",
-        "label": "ClickExecで実行"
-      }
-    ]
+    }
   }
 }
 ```
+
+> **note**: `submenus` セクションと `menus.clickExec.submenu` セクションは削除済み。`explorer/context` と `editor/title/context` は `clickExec.runTool` コマンドを直接参照する（flatten-context-menu により変更）
 
 ### PlaceholderContext の構築フロー
 

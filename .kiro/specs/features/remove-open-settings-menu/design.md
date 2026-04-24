@@ -2,7 +2,9 @@
 
 ## 概要
 
-ClickExec拡張機能のコンテキストメニュー（「ClickExecで実行」サブメニュー）から「設定を開く...」メニュー項目を削除し、関連する `clickExec.openSettings` コマンドの登録を解除する。
+ClickExec拡張機能のコンテキストメニューから「設定を開く...」メニュー項目を削除し、関連する `clickExec.openSettings` コマンドの登録を解除する。
+
+> 注: flatten-context-menu により、サブメニュー構造は廃止されフラット構造に変更済み。本ドキュメントの package.json 記述はフラット構造を反映している。
 
 サンプルコマンド自動追加機能（`DefaultToolPersistenceService`）の実装により、ユーザーが手動で設定を開く導線は不要となった。ただし、`SettingsOpener` モジュール（`openSettings()` 関数）は `DefaultToolPersistenceService` から引き続き使用されるため、モジュール自体は保持する。
 
@@ -33,18 +35,16 @@ graph TD
 
     subgraph 削除対象
         X[clickExec.openSettings コマンド登録]
-        Y[サブメニュー settings グループ]
     end
 
     style X fill:#fdd,stroke:#c00
-    style Y fill:#fdd,stroke:#c00
 ```
 
 ### 変更の影響範囲
 
 | ファイル | 変更内容 |
 |---|---|
-| `package.json` | `contributes.commands` から `clickExec.openSettings` を削除、`contributes.menus.clickExec.submenu` から settings グループのエントリを削除 |
+| `package.json` | `contributes.commands` から `clickExec.openSettings` を削除（注: flatten-context-menu によりサブメニュー構造は廃止済み。コマンドは `explorer/context` と `editor/title/context` に直接配置） |
 | `src/extension.ts` | `clickExec.openSettings` コマンド登録処理と `openSettings` インポートを削除 |
 | `src/settingsOpener.ts` | 変更なし（保持） |
 | `src/defaultToolPersistenceService.ts` | 変更なし（`openSettings` の使用を維持） |
@@ -61,24 +61,18 @@ graph TD
 
 `contributes` セクションから以下を削除する:
 
-**削除前:**
+**削除前（注: flatten-context-menu によりサブメニュー構造は廃止済み。以下は当時の構造を参考として記載）:**
 ```json
 {
   "commands": [
     { "command": "clickExec.runTool", "title": "ClickExec: ツールを実行" },
     { "command": "clickExec.selectAndRunTool", "title": "ClickExec: ツールを選択して実行" },
     { "command": "clickExec.openSettings", "title": "ClickExec: 設定を開く" }
-  ],
-  "menus": {
-    "clickExec.submenu": [
-      { "command": "clickExec.runTool", "group": "tools" },
-      { "command": "clickExec.openSettings", "group": "settings" }
-    ]
-  }
+  ]
 }
 ```
 
-**削除後:**
+**削除後（フラット構造）:**
 ```json
 {
   "commands": [
@@ -86,8 +80,11 @@ graph TD
     { "command": "clickExec.selectAndRunTool", "title": "ClickExec: ツールを選択して実行" }
   ],
   "menus": {
-    "clickExec.submenu": [
-      { "command": "clickExec.runTool", "group": "tools" }
+    "explorer/context": [
+      { "command": "clickExec.runTool", "group": "clickExec" }
+    ],
+    "editor/title/context": [
+      { "command": "clickExec.runTool", "group": "clickExec" }
     ]
   }
 }
@@ -95,8 +92,7 @@ graph TD
 
 変更点:
 - `contributes.commands` から `clickExec.openSettings` エントリを削除
-- `contributes.menus.clickExec.submenu` から `clickExec.openSettings` エントリを削除
-- サブメニュー内は `tools` グループのみとなり、区切り線は表示されなくなる
+- メニュー構造はフラット化済み（flatten-context-menu による変更）: `explorer/context` と `editor/title/context` にコマンドを直接配置
 
 ### 2. extension.ts（変更）
 
@@ -197,6 +193,8 @@ export class DefaultToolPersistenceService {
 
 ### package.json の contributes 変更差分（最終状態）
 
+> 注: flatten-context-menu によりサブメニュー構造は廃止済み。`submenus` セクションと `menus.clickExec.submenu` セクションは削除され、コマンドは `explorer/context` と `editor/title/context` に直接配置されている。
+
 ```json
 {
   "contributes": {
@@ -206,18 +204,12 @@ export class DefaultToolPersistenceService {
     ],
     "menus": {
       "explorer/context": [
-        { "submenu": "clickExec.submenu", "group": "clickExec" }
+        { "command": "clickExec.runTool", "group": "clickExec" }
       ],
       "editor/title/context": [
-        { "submenu": "clickExec.submenu", "group": "clickExec" }
-      ],
-      "clickExec.submenu": [
-        { "command": "clickExec.runTool", "group": "tools" }
+        { "command": "clickExec.runTool", "group": "clickExec" }
       ]
-    },
-    "submenus": [
-      { "id": "clickExec.submenu", "label": "ClickExecで実行" }
-    ]
+    }
   }
 }
 ```
@@ -241,7 +233,9 @@ export class DefaultToolPersistenceService {
 
 ### Property 1: package.json にコマンド定義が存在しないことの検証
 
-*任意の* `package.json` の `contributes.commands` 配列内のコマンドに対して、そのコマンドIDが `clickExec.openSettings` と一致しないこと。また、`contributes.menus.clickExec.submenu` 配列内のエントリに対して、そのコマンドIDが `clickExec.openSettings` と一致しないこと。
+*任意の* `package.json` の `contributes.commands` 配列内のコマンドに対して、そのコマンドIDが `clickExec.openSettings` と一致しないこと。
+
+> 注: flatten-context-menu によりサブメニュー構造（`clickExec.submenu`）は廃止済み。コマンドは `explorer/context` と `editor/title/context` に直接配置されている。
 
 **Validates: Requirements 1.1, 1.2, 2.1**
 
@@ -278,7 +272,7 @@ export class DefaultToolPersistenceService {
 
 1. **package.json 構造検証テスト**
    - `contributes.commands` に `clickExec.openSettings` が含まれないことを検証
-   - `contributes.menus.clickExec.submenu` に `clickExec.openSettings` が含まれないことを検証
+   - 注: flatten-context-menu によりサブメニュー構造（`clickExec.submenu`）は廃止済み
    - タグ: `Feature: remove-open-settings-menu, Property 1: package.json にコマンド定義が存在しないことの検証`
 
 2. **settingsOpener.ts モジュール存在確認テスト**
