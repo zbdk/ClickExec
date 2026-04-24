@@ -4,6 +4,7 @@
   "description": "エクスプローラーやエディタタブのコンテキストメニューから外部コマンドを実行するVSCode拡張機能",
   "version": "0.0.4",
   "publisher": "clickexec",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
