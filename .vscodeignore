@@ -1,0 +1,11 @@
+.kiro/**
+.vscode/**
+.git/**
+.gitignore
+src/**
+node_modules/**
+out/test/**
+test-setup.js
+tsconfig.json
+*.vsix
+package-lock.json
