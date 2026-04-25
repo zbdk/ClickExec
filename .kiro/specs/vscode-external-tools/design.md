@@ -243,6 +243,23 @@ export function deactivate(): void;
 }
 ```
 
+### package.json の scripts 定義
+
+```json
+{
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "mocha --require ./test-setup.js ./out/test/**/*.test.js --timeout 10000",
+    "test:property": "mocha --require ./test-setup.js ./out/test/property/**/*.property.test.js --timeout 30000",
+    "vsce:package": "vsce package"
+  }
+}
+```
+
+> **note**: `vsce:package` スクリプトは `@vscode/vsce`（devDependencies）を使用してvsixパッケージを生成する（github-actions-release により追加）
+
 ### package.json の contributes 定義
 
 ```json
@@ -411,6 +428,10 @@ flowchart TD
 - **ユニットテスト**: Mocha + Chai（VSCode拡張機能の標準）
 - **プロパティベーステスト**: [fast-check](https://github.com/dubzzz/fast-check)
 - **統合テスト**: `@vscode/test-electron` による実環境テスト
+
+### ビルド・パッケージングツール
+
+- **`@vscode/vsce`**（devDependencies）— vsixパッケージ生成ツール。`npm run vsce:package` で `vsce package` を実行し、`clickexec-{version}.vsix` ファイルを生成する
 
 ### テスト対象の分類
 
