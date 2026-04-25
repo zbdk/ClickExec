@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.js
+!test-setup.js
 *.d.ts
 *.js.map
 *.vsix
