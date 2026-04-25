@@ -2,7 +2,7 @@
   "name": "clickexec",
   "displayName": "ClickExec",
   "description": "エクスプローラーやエディタタブのコンテキストメニューから外部コマンドを実行するVSCode拡張機能",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "publisher": "clickexec",
   "icon": "images/icon.png",
   "repository": {
