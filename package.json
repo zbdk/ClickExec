@@ -5,6 +5,10 @@
   "version": "0.0.4",
   "publisher": "clickexec",
   "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zbdk/ClickExec"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
